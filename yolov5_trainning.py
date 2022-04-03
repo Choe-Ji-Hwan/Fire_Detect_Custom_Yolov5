@@ -23,7 +23,7 @@ drive.mount('/content/drive')
 
 """
 
-!curl -L "https://app.roboflow.com/ds/uKGjmfWq0R?key=FvuYn9x0Fi" > roboflow.zip; 
+!curl -L "https://app.roboflow.com/ds/zXdMyyQ0A5?key=zrtBnO8WQ8" > roboflow.zip; 
 !unzip roboflow.zip; rm roboflow.zip
 
 !unzip roboflow.zip; rm roboflow.zip
@@ -42,17 +42,17 @@ with open('/content/drive/MyDrive/Colab_Notebooks/dataset/test.txt', 'w') as f:
 
 """# **커스텀 학습**"""
 
-!python train.py --img 416 --batch 16 --epochs 50 --data /content/yolov5/data.yaml --weights yolov5m.pt --name result_fire --cfg ./models/yolov5m.yaml
+!python train.py --img 416 --batch 16 --epochs 20 --data /content/yolov5/data.yaml --weights yolov5m.pt --name result_fire --cfg ./models/yolov5m.yaml
 
 """# **학습 결과를 다운로드하고 싶다면, 내용 모두 압축하여 저장**"""
 
-!zip -r custom_train_result.zip runs/train/result_fire
+!zip -r custom_train_result.zip runs/train/result_fire3
 
 """# **검증하기는 생략, 바로 적용해보기**
 테스트 결과는 ```/runs/detect/exp``` 경로에 저장
 """
 
-!python detect.py --weights "/content/yolov5/runs/train/result_fire7/weights/best.pt" --source 'https://www.youtube.com/watch?v=F_muEod1-Fo'  # YouTube
+!python detect.py --weights "/content/yolov5/runs/train/result_fire3/weights/best.pt" --source 'https://www.youtube.com/watch?v=ai0-jT6kuoA'  # YouTube
 
 !zip -r test_result.zip runs/detect/exp
 
