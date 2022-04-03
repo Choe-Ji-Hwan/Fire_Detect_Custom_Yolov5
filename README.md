@@ -1,4 +1,4 @@
-# fire detect using custom datas and yolov5
+# Fire detect using custom datas and yolov5
 - use Colab
 - Process</br>
 ```
@@ -7,11 +7,12 @@
   3. trainning</br>
   4. comparison (yolov5 models, epoch, fire size)</br>
 ```
-## preview
+## Result
+![Hnet com-image](https://user-images.githubusercontent.com/54761791/161439236-73a6c044-75f6-462e-8dde-cdaef96fc75c.gif)
 ![Hnet com-image](https://user-images.githubusercontent.com/54761791/161438769-097e2fea-6f0a-4494-b4dc-e8cba4541bba.gif)
 
 
-## use dataset
+## used Dataset
 Kaggle Fire Dataset: https://www.kaggle.com/phylake1337/fire-dataset </br>
 cair/Fire-Detection-Image-Dataset images: https://github.com/cair/Fire-Detection-Image-Dataset</br>
 Fire Image Data Set for Dunnings 2018 study-PNG still image set: https://collections.durham.ac.uk/files/r2d217qp536#.YkMMGShBxD_ </br>
