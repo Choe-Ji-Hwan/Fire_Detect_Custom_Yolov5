@@ -46,26 +46,15 @@ with open('/content/drive/MyDrive/Colab_Notebooks/dataset/test.txt', 'w') as f:
 
 !python train.py --img 416 --batch 16 --epochs 50 --data /content/yolov5/data/data.yaml --weights yolov5s.pt --name result_fire --cfg ./models/yolov5s.yaml
 
-"""# **그림을 위한 설치**"""
-
-!pip install wandb
-
-"""결과는 yolov5/runs/train/exp/results.csv에 결과 저장
-이미지는 yolov5/runs/train/exp/results.png에 결과 저장
-"""
-
-from utils.plots import plot_results
-plot_results('runs/train/exp/results.png')  # plot 'results.csv' as 'results.png'
-
 """# **학습 결과를 다운로드하고 싶다면, 내용 모두 압축하여 저장**"""
 
-!zip -r train_result.zip runs/train/exp
+!zip -r custom_train_result.zip runs/train/result_fire7
 
 """# **검증하기는 생략, 바로 적용해보기**
 테스트 결과는 ```/runs/detect/exp``` 경로에 저장
 """
 
-!python detect.py --source 'https://www.youtube.com/watch?v=mI9oyFMUlfg'  # YouTube
+!python detect.py --weights "/content/yolov5/runs/train/result_fire7/weights/best.pt" --source 'https://www.youtube.com/watch?v=F_muEod1-Fo'  # YouTube
 
 !zip -r test_result.zip runs/detect/exp
 
