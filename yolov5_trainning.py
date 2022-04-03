@@ -23,7 +23,8 @@ drive.mount('/content/drive')
 
 """
 
-!curl -L "https://app.roboflow.com/ds/GAUG758dC1?key=nuDFxqHLzM" > roboflow.zip;
+!curl -L "https://app.roboflow.com/ds/uKGjmfWq0R?key=FvuYn9x0Fi" > roboflow.zip; 
+!unzip roboflow.zip; rm roboflow.zip
 
 !unzip roboflow.zip; rm roboflow.zip
 
@@ -32,9 +33,6 @@ drive.mount('/content/drive')
 from glob import glob
 tra_img_list = glob('/content/drive/MyDrive/Colab_Notebooks/dataset/train/images/*.jpg') # train 이미지 경로
 val_img_list = glob('/content/drive/MyDrive/Colab_Notebooks/dataset/test/images/*.jpg') # 테스트 이미지 경로
-for img in tra_img_list:
-  print(img)
-
 
 with open('/content/drive/MyDrive/Colab_Notebooks/dataset/train.txt', 'w') as f:
   f.write('\n'.join(tra_img_list) + '\n')
@@ -42,13 +40,13 @@ with open('/content/drive/MyDrive/Colab_Notebooks/dataset/train.txt', 'w') as f:
 with open('/content/drive/MyDrive/Colab_Notebooks/dataset/test.txt', 'w') as f:
   f.write('\n'.join(val_img_list) + '\n')
 
-"""# **튜토리얼 학습**"""
+"""# **커스텀 학습**"""
 
-!python train.py --img 416 --batch 16 --epochs 50 --data /content/yolov5/data/data.yaml --weights yolov5s.pt --name result_fire --cfg ./models/yolov5s.yaml
+!python train.py --img 416 --batch 16 --epochs 50 --data /content/yolov5/data.yaml --weights yolov5m.pt --name result_fire --cfg ./models/yolov5m.yaml
 
 """# **학습 결과를 다운로드하고 싶다면, 내용 모두 압축하여 저장**"""
 
-!zip -r custom_train_result.zip runs/train/result_fire7
+!zip -r custom_train_result.zip runs/train/result_fire
 
 """# **검증하기는 생략, 바로 적용해보기**
 테스트 결과는 ```/runs/detect/exp``` 경로에 저장
