@@ -1,4 +1,5 @@
 # fire detect using custom datas and yolov5
+- use Colab
 - Process</br>
 ```
   1. Use yolov5 for tutorial</br>
