@@ -7,6 +7,9 @@
   3. trainning</br>
   4. comparison (yolov5 models, epoch, fire size)</br>
 ```
+## preview
+![Hnet com-image](https://user-images.githubusercontent.com/54761791/161438769-097e2fea-6f0a-4494-b4dc-e8cba4541bba.gif)
+
 
 ## use dataset
 Kaggle Fire Dataset: https://www.kaggle.com/phylake1337/fire-dataset </br>
