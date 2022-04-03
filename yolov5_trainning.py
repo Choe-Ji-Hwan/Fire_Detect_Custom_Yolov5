@@ -18,18 +18,33 @@ drive.mount('/content/drive')
 # %cd yolov5
 # %pip install -qr requirements.txt
 
-"""# **Train set, Valid set, Test set 나누기**"""
+"""# **데이터셋 가져오기**
 
-!pip install split-folders tqdm
 
-import splitfolders
-splitfolders.ratio('/content/drive/MyDrive/Colab_Notebooks/fire_indoor_images/fire',  # 자기 폴더로 바꿔야됨. (fire 라는 폴더 아래 하위 폴더가 존재해야됨(class)로 할,)
-                   output="/content/drive/MyDrive/Colab_Notebooks/images", 
-                   seed=77, ratio=(.8, 0.1, 0.1))
+"""
+
+!curl -L "https://app.roboflow.com/ds/GAUG758dC1?key=nuDFxqHLzM" > roboflow.zip;
+
+!unzip roboflow.zip; rm roboflow.zip
+
+"""# **이미지 한번에 긁어모으기 위한 glob 모듈 사용**"""
+
+from glob import glob
+tra_img_list = glob('/content/drive/MyDrive/Colab_Notebooks/dataset/train/images/*.jpg') # train 이미지 경로
+val_img_list = glob('/content/drive/MyDrive/Colab_Notebooks/dataset/test/images/*.jpg') # 테스트 이미지 경로
+for img in tra_img_list:
+  print(img)
+
+
+with open('/content/drive/MyDrive/Colab_Notebooks/dataset/train.txt', 'w') as f:
+  f.write('\n'.join(tra_img_list) + '\n')
+
+with open('/content/drive/MyDrive/Colab_Notebooks/dataset/test.txt', 'w') as f:
+  f.write('\n'.join(val_img_list) + '\n')
 
 """# **튜토리얼 학습**"""
 
-!python train.py --img 640 --batch 16 --epochs 3 --data coco128.yaml --weights yolov5s.pt
+!python train.py --img 416 --batch 16 --epochs 50 --data /content/yolov5/data/data.yaml --weights yolov5s.pt --name result_fire --cfg ./models/yolov5s.yaml
 
 """# **그림을 위한 설치**"""
 
@@ -53,3 +68,8 @@ plot_results('runs/train/exp/results.png')  # plot 'results.csv' as 'results.png
 !python detect.py --source 'https://www.youtube.com/watch?v=mI9oyFMUlfg'  # YouTube
 
 !zip -r test_result.zip runs/detect/exp
+
+!git add .
+!git commit -m "tutorial"
+!git push origin master
+
