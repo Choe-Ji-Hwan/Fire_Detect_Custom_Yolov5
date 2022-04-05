@@ -21,10 +21,10 @@
 <table>
   <tr>
     <td>
-      <img src="https://user-images.githubusercontent.com/54761791/161767737-e51233b9-232b-42e2-b0fc-6c02340f29c2.jpg" width="300" height="300"/>
+      <img src="https://user-images.githubusercontent.com/54761791/161767737-e51233b9-232b-42e2-b0fc-6c02340f29c2.jpg" width="200" height="200"/>
     </td>
     <td>
-      <img src="https://user-images.githubusercontent.com/54761791/161767484-6b17a39d-b6bf-416a-9b79-b14f49c00187.png" width="300" height="300"/>
+      <img src="https://user-images.githubusercontent.com/54761791/161767484-6b17a39d-b6bf-416a-9b79-b14f49c00187.png" width="200" height="200"/>
     </td>
   </tr>
   <tr>
