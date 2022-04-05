@@ -31,7 +31,7 @@
     </td>
   </tr>
   <tr>
-    <td>
+    <td align="center">
       <a href="https://github.com/ultralytics/yolov5">YOLOv5</a>
     </td>
     <td align="center">
