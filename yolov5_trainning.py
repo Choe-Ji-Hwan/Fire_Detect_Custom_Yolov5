@@ -23,30 +23,28 @@ drive.mount('/content/drive')
 
 """
 
-!curl -L "https://app.roboflow.com/ds/zXdMyyQ0A5?key=zrtBnO8WQ8" > roboflow.zip; 
-!unzip roboflow.zip; rm roboflow.zip
-
+!curl -L "#########--insert your URL--###########" > roboflow.zip; 
 !unzip roboflow.zip; rm roboflow.zip
 
 """# **이미지 한번에 긁어모으기 위한 glob 모듈 사용**"""
 
 from glob import glob
-tra_img_list = glob('/content/drive/MyDrive/Colab_Notebooks/dataset/train/images/*.jpg') # train 이미지 경로
-val_img_list = glob('/content/drive/MyDrive/Colab_Notebooks/dataset/test/images/*.jpg') # 테스트 이미지 경로
+tra_img_list = glob('/content/yolov5/train/images/*.jpg') # train 이미지 경로
+val_img_list = glob('/content/yolov5/test/images/*.jpg') # 테스트 이미지 경로
 
-with open('/content/drive/MyDrive/Colab_Notebooks/dataset/train.txt', 'w') as f:
+with open('/content/yolov5/train.txt', 'w') as f:
   f.write('\n'.join(tra_img_list) + '\n')
 
-with open('/content/drive/MyDrive/Colab_Notebooks/dataset/test.txt', 'w') as f:
+with open('/content/yolov5/test.txt', 'w') as f:
   f.write('\n'.join(val_img_list) + '\n')
 
 """# **커스텀 학습**"""
 
-!python train.py --img 416 --batch 16 --epochs 20 --data /content/yolov5/data.yaml --weights yolov5m.pt --name result_fire --cfg ./models/yolov5m.yaml
+!python train.py --img 416 --batch 16 --epochs 40 --data /content/yolov5/data.yaml --weights yolov5m.pt --name result_fire --cfg ./models/yolov5m.yaml
 
 """# **학습 결과를 다운로드하고 싶다면, 내용 모두 압축하여 저장**"""
 
-!zip -r custom_train_result.zip runs/train/result_fire3
+!zip -r ../drive/MyDrive/Colab_Notebooks/custom_train_result_ver10.zip runs/train/result_fire3
 
 """# **검증하기는 생략, 바로 적용해보기**
 테스트 결과는 ```/runs/detect/exp``` 경로에 저장
@@ -56,7 +54,9 @@ with open('/content/drive/MyDrive/Colab_Notebooks/dataset/test.txt', 'w') as f:
 
 !zip -r test_result.zip runs/detect/exp
 
-!git add .
-!git commit -m "tutorial"
-!git push origin master
+"""# **코랩 유지에 필요한 코드(F12 Javascript)**"""
 
+function ClickConnect(){
+console.log("Working"); 
+document.querySelector("colab-toolbar-button#connect").click() 
+}setInterval(ClickConnect, 1800000)
