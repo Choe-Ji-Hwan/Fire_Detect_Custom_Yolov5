@@ -94,6 +94,9 @@ def run(
     stride, names, pt = model.stride, model.names, model.pt
     imgsz = check_img_size(imgsz, s=stride)  # check image size
 
+    names = ["scale 1 불", "scale 2 불", "scale 3 불", "지속적인 scale 1 화재 주의(발생)", "scale1 후 지속적인 화재 발생", "scale2 화재 발생",
+             "화재(심각) 발생"]
+    print(names)
     # Dataloader
     if webcam:
         view_img = check_imshow()
@@ -144,7 +147,12 @@ def run(
         # Second-stage classifier (optional)
         # pred = utils.general.apply_classifier(pred, classifier_model, im, im0s)
         # Process predictions
+        full_screen = [torch.tensor(0.), torch.tensor(0.), torch.tensor(640.), torch.tensor(480.)]
+        flag = False
         for i, det in enumerate(pred):  # per image
+            print("--------------------------------============pred: ", end="")
+            print(pred)
+            print(det)
             seen += 1
             if webcam:  # batch_size >= 1
                 p, im0, frame = path[i], im0s[i].copy(), dataset.count
@@ -158,18 +166,25 @@ def run(
             s += '%gx%g ' % im.shape[2:]  # print string
             gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
             imc = im0.copy() if save_crop else im0  # for save_crop
-            annotator = Annotator(im0, line_width=line_thickness, example=str(names))
+            annotator = Annotator(im0, line_width=1, example=str(names))
             if len(det):
                 # Rescale boxes from img_size to im0 size
                 det[:, :4] = scale_coords(im.shape[2:], det[:, :4], im0.shape).round()
-
                 # Print results
                 for c in det[:, -1].unique():
                     n = (det[:, -1] == c).sum()  # detections per class
                     s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
+                det = torch.cat([torch.FloatTensor([[0, 0, 640, 480, 0, 1]]), det], dim=0)  # 전체 사이즈 추가
+                print("--------------------------------============det: ", end="")
+                print(det)
+                path = 0
 
                 # Write results
                 for *xyxy, conf, cls in reversed(det):
+                    if torch.equal(xyxy[0], det[0][0]) and torch.equal(xyxy[1], det[0][1]):
+                        if torch.equal(xyxy[2], det[0][2]) and torch.equal(xyxy[3], det[0][3]):
+                            flag = True
+                    print("*xyxy: ", *xyxy, "conf: ", conf, "cls: ", cls)
                     if save_txt:  # Write to file
                         xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
                         line = (cls, *xywh, conf) if save_conf else (cls, *xywh)  # label format
@@ -179,68 +194,92 @@ def run(
                     if save_img or save_crop or view_img:  # Add bbox to image
                         c = int(cls)  # integer class
                         # 여기서 c가 0: scale1fire, 1: scale2fire, 2: scale3fire
-                        if c == 0:
-                            if not scale1_flag:     # 초기에 시간만 기록
-                                scale1_time = time.time()
-                            scale1_flag = True  # 현재 불이 났음을 알림.
-                            print("scale1 : 현재 시각:" + str(time.time()) + ", 기록된 시각: " + str(scale3_time))
-                            print("scale1 : 두 시각의 차: " + str(time.time() - scale2_time))
-                            if time.time() - scale1_time >= 10:
-                                if not notify1_flag:
-                                    notify1_time = time.time()
-                                notify1_flag = True
-                                print("지속적인 scale 1 화재 주의(발생)")  # 현재 상황을 알림
-                                if time.time() - notify1_time >= 10:     # 10초간 알림.
-                                    scale1_flag = False
-                                    scale1_time = 0
-                                    notify1_flag = False
-                                    notify1_time = 0
-                        if c == 1:
-                            if not scale2_flag:     # 초기에 시간만 기록
-                                scale2_time = time.time()
-                            scale2_flag = True
-                            print("scale2 : 현재 시각:" + str(time.time()) + ", 기록된 시각: " + str(scale3_time))
-                            print("scale2 : 두 시각의 차: " + str(time.time() - scale2_time))
-                            # 0가 발생하고 5초 뒤에 1이 발생하는 경우
-                            if scale1_flag and scale2_flag:
-                                if time.time() - scale1_time > 5:
-                                    if not notify2_flag:
-                                        notify2_time = time.time()
-                                    notify2_flag = True
-                                    print("scale1 후 지속적인 화재 발생")
-                                    if time.time() - notify2_time >= 10:  # 10초간 알림.
+                        if not flag:
+                            if c == 2:
+                                if not scale3_flag:  # 초기에 시간만 기록
+                                    scale3_time = time.time()
+                                scale3_flag = True
+                                print("scale3 : 현재 시각:" + str(time.time()) + ", 기록된 시각: " + str(scale3_time))
+                                print("scale3 : 두 시각의 차: " + str(time.time() - scale3_time))
+                                if scale3_flag and time.time() - scale3_time >= 1:
+                                    notify_time = time.time()
+                                    print("화재(심각) 발생")
+                                    path = 3
+                                    if time.time() - notify_time >= 10:  # 10초간 알림.
+                                        scale3_flag = False
+                                        scale3_time = 0
+                            if c == 1:
+                                if not scale2_flag:  # 초기에 시간만 기록
+                                    scale2_time = time.time()
+                                scale2_flag = True
+                                print("scale2 : 현재 시각:" + str(time.time()) + ", 기록된 시각: " + str(scale3_time))
+                                print("scale2 : 두 시각의 차: " + str(time.time() - scale2_time))
+                                # 0가 발생하고 5초 뒤에 1이 발생하는 경우
+                                if scale1_flag and scale2_flag and not scale3_flag:
+                                    if time.time() - scale1_time > 5:
+                                        if not notify2_flag:
+                                            notify2_time = time.time()
+                                        notify2_flag = True
+                                        print("scale1 후 지속적인 화재 발생")
+                                        path = 1
+                                        if time.time() - notify2_time >= 10:  # 10초간 알림.
+                                            scale1_flag = False
+                                            scale2_flag = False
+                                            scale1_time = 0
+                                            scale2_time = 0
+                                            notify2_time = 0
+                                            notify2_flag = False
+                                elif scale2_flag:
+                                    if time.time() - scale2_time > 2:
+                                        if not notify3_flag:
+                                            notify3_time = time.time()
+                                        notify3_flag = True
+                                        print("scale2 화재 발생")
+                                        path = 2
+                                        if time.time() - notify3_time >= 10:  # 10초간 알림.
+                                            scale2_flag = False
+                                            scale2_time = 0
+                                            notify3_time = 0
+                                            notify3_flag = False
+                            if c == 0:
+                                if not scale1_flag:  # 초기에 시간만 기록
+                                    scale1_time = time.time()
+                                scale1_flag = True  # 현재 불이 났음을 알림.
+                                print("scale1 : 현재 시각:" + str(time.time()) + ", 기록된 시각: " + str(scale3_time))
+                                print("scale1 : 두 시각의 차: " + str(time.time() - scale2_time))
+                                if time.time() - scale1_time >= 10:
+                                    if not notify1_flag:
+                                        notify1_time = time.time()
+                                    notify1_flag = True
+                                    print("지속적인 scale 1 화재 주의(발생)")  # 현재 상황을 알림
+                                    path = 0
+                                    if time.time() - notify1_time >= 10:  # 10초간 알림.
                                         scale1_flag = False
-                                        scale2_flag = False
                                         scale1_time = 0
-                                        scale2_time = 0
-                                        notify2_time = 0
-                                        notify2_flag = False
-                            if scale2_flag:
-                                if time.time() - scale2_time > 2:
-                                    if not notify3_flag:
-                                        notify3_time = time.time()
-                                    notify3_flag = True
-                                    print("scale2 화재 발생")
-                                    if time.time() - notify3_time >= 10:  # 10초간 알림.
-                                        scale2_flag = False
-                                        scale2_time = 0
-                                        notify3_time = 0
-                                        notify3_flag = False
-                        if c == 2:
-                            if not scale3_flag:     # 초기에 시간만 기록
-                                scale3_time = time.time()
-                            scale3_flag = True
-                            print("scale3 : 현재 시각:" + str(time.time()) + ", 기록된 시각: " + str(scale3_time))
-                            print("scale3 : 두 시각의 차: " + str(time.time() - scale3_time))
-                            if scale3_flag and time.time() - scale3_time >= 1:
-                                notify_time = time.time()
-                                print("화재(심각) 발생")
-                                if time.time() - notify_time >= 10:  # 10초간 알림.
-                                    scale3_flag = False
-                                    scale3_time = 0
+                                        notify1_flag = False
+                                        notify1_time = 0
 
                         label = None if hide_labels else (names[c] if hide_conf else f'{names[c]} {conf:.2f}')
-                        annotator.box_label(xyxy, label, color=colors(c, True))
+
+                        if flag and path == 0:
+                            annotator.box_label(xyxy, names[3], color=colors(3, True))
+                            flag = False
+
+                        elif flag and path == 1:
+                            annotator.box_label(xyxy, names[4], color=colors(4, True))
+                            flag = False
+
+                        elif flag and path == 2:
+                            annotator.box_label(xyxy, names[5], color=colors(5, True))
+                            flag = False
+
+                        elif flag and path == 3:
+                            annotator.box_label(xyxy, names[6], color=colors(6, True))
+                            flag = False
+
+                        else:
+                            annotator.box_label(xyxy, label, color=colors(c, True))
+
                         if save_crop:
                             save_one_box(xyxy, imc, file=save_dir / 'crops' / names[c] / f'{p.stem}.jpg', BGR=True)
 
@@ -248,7 +287,7 @@ def run(
             im0 = annotator.result()
             if view_img:
                 cv2.imshow(str(p), im0)
-                cv2.waitKey(1)  # 1 millisecond
+                cv2.waitKey(100)  # 1 millisecond
 
             # Save results (image with detections)
             if save_img:
