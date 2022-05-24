@@ -31,7 +31,6 @@ from pathlib import Path
 
 import torch
 import torch.backends.cudnn as cudnn
-import time
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # YOLOv5 root directory
@@ -40,11 +39,12 @@ if str(ROOT) not in sys.path:
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
 from models.common import DetectMultiBackend
-from utils.datasets import IMG_FORMATS, VID_FORMATS, LoadImages, LoadStreams
+from utils.dataloaders import IMG_FORMATS, VID_FORMATS, LoadImages, LoadStreams
 from utils.general import (LOGGER, check_file, check_img_size, check_imshow, check_requirements, colorstr, cv2,
                            increment_path, non_max_suppression, print_args, scale_coords, strip_optimizer, xyxy2xywh)
 from utils.plots import Annotator, colors, save_one_box
 from utils.torch_utils import select_device, time_sync
+import time
 
 
 @torch.no_grad()
@@ -94,9 +94,6 @@ def run(
     stride, names, pt = model.stride, model.names, model.pt
     imgsz = check_img_size(imgsz, s=stride)  # check image size
 
-    names = ["scale 1 불", "scale 2 불", "scale 3 불", "지속적인 scale 1 화재 주의(발생)", "scale1 후 지속적인 화재 발생", "scale2 화재 발생",
-             "화재(심각) 발생"]
-    print(names)
     # Dataloader
     if webcam:
         view_img = check_imshow()
@@ -111,20 +108,16 @@ def run(
     # Run inference
     model.warmup(imgsz=(1 if pt else bs, 3, *imgsz))  # warmup
     dt, seen = [0.0, 0.0, 0.0], 0
-    scale1_time = 0
-    scale2_time = 0
-    scale3_time = 0
-    notify1_time = 0
-    notify2_time = 0
-    notify3_time = 0
-    scale1_flag = False
-    scale2_flag = False
-    scale3_flag = False
-    notify1_flag = False
-    notify2_flag = False
-    notify3_flag = False
+    center = 0
+    diff = 1
+    areas = 2
+    timer = 3
 
+    x = 0
+    y = 1
+    fire_history = list()
     for path, im, im0s, vid_cap, s in dataset:
+        remove_list = list()
         t1 = time_sync()
         im = torch.from_numpy(im).to(device)
         im = im.half() if model.fp16 else im.float()  # uint8 to fp16/32
@@ -146,13 +139,9 @@ def run(
 
         # Second-stage classifier (optional)
         # pred = utils.general.apply_classifier(pred, classifier_model, im, im0s)
+
         # Process predictions
-        full_screen = [torch.tensor(0.), torch.tensor(0.), torch.tensor(640.), torch.tensor(480.)]
-        flag = False
         for i, det in enumerate(pred):  # per image
-            print("--------------------------------============pred: ", end="")
-            print(pred)
-            print(det)
             seen += 1
             if webcam:  # batch_size >= 1
                 p, im0, frame = path[i], im0s[i].copy(), dataset.count
@@ -170,124 +159,131 @@ def run(
             if len(det):
                 # Rescale boxes from img_size to im0 size
                 det[:, :4] = scale_coords(im.shape[2:], det[:, :4], im0.shape).round()
+
                 # Print results
                 for c in det[:, -1].unique():
                     n = (det[:, -1] == c).sum()  # detections per class
                     s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
-                det = torch.cat([torch.FloatTensor([[0, 0, 640, 480, 0, 1]]), det], dim=0)  # 전체 사이즈 추가
-                print("--------------------------------============det: ", end="")
-                print(det)
-                path = 0
 
                 # Write results
+                cur_time = time.time()
                 for *xyxy, conf, cls in reversed(det):
-                    if torch.equal(xyxy[0], det[0][0]) and torch.equal(xyxy[1], det[0][1]):
-                        if torch.equal(xyxy[2], det[0][2]) and torch.equal(xyxy[3], det[0][3]):
-                            flag = True
-                    print("*xyxy: ", *xyxy, "conf: ", conf, "cls: ", cls)
+                    # 불 객체를 정의하기 위해서 중앙 점 좌표 구하기
+                    # -------------------------------------------------------------
+                    center_point = ((xyxy[0] + xyxy[2]) / 2, (xyxy[1] + xyxy[3]) / 2)  # 불 중앙 좌표
+                    fire_area = (xyxy[2] - xyxy[0]) * (xyxy[3] - xyxy[1])  # 불 사이즈
+
+                    # 10초 지난 것들 기록 삭제
+                    for idx in range(len(fire_history) - 1, 0, -1):
+                        if cur_time - fire_history[idx][timer] > 10:
+                            if fire_history:
+                                remove_list.append(idx)
+                    for idx in remove_list:
+                        if fire_history:
+                            fire_history.remove(fire_history[idx])
+
+                    # 불 추가하기 (하나의 객체는 가운데 점이 박스 밖에 안나가는 걸 하나로 친다)
+                    find = False
+                    print(fire_history)
+                    for f in fire_history:
+                        if f[center][x] - f[diff][x] <= center_point[x] <= f[center][x] + f[diff][x]:
+                            if f[center][y] - f[diff][y] <= center_point[y] <= f[center][y] + f[diff][y]:
+                                f[center] = center_point
+                                f[diff] = (center_point[0] - xyxy[0], center_point[1] - xyxy[1])
+                                f[areas].append(fire_area)
+                                f[timer] = cur_time
+                                find = True
+                                break
+                    if not find:
+                        fire_history.append([center_point,
+                                             (center_point[x] - xyxy[0], center_point[y] - xyxy[1]),
+                                             [fire_area],
+                                             cur_time])
+                    # -------------------------------------------------------------
+
                     if save_txt:  # Write to file
                         xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
                         line = (cls, *xywh, conf) if save_conf else (cls, *xywh)  # label format
-                        with open(txt_path + '.txt', 'a') as f:
+                        with open(f'{txt_path}.txt', 'a') as f:
                             f.write(('%g ' * len(line)).rstrip() % line + '\n')
 
                     if save_img or save_crop or view_img:  # Add bbox to image
                         c = int(cls)  # integer class
-                        # 여기서 c가 0: scale1fire, 1: scale2fire, 2: scale3fire
-                        if not flag:
-                            if c == 2:
-                                if not scale3_flag:  # 초기에 시간만 기록
-                                    scale3_time = time.time()
-                                scale3_flag = True
-                                print("scale3 : 현재 시각:" + str(time.time()) + ", 기록된 시각: " + str(scale3_time))
-                                print("scale3 : 두 시각의 차: " + str(time.time() - scale3_time))
-                                if scale3_flag and time.time() - scale3_time >= 1:
-                                    notify_time = time.time()
-                                    print("화재(심각) 발생")
-                                    path = 3
-                                    if time.time() - notify_time >= 10:  # 10초간 알림.
-                                        scale3_flag = False
-                                        scale3_time = 0
-                            if c == 1:
-                                if not scale2_flag:  # 초기에 시간만 기록
-                                    scale2_time = time.time()
-                                scale2_flag = True
-                                print("scale2 : 현재 시각:" + str(time.time()) + ", 기록된 시각: " + str(scale3_time))
-                                print("scale2 : 두 시각의 차: " + str(time.time() - scale2_time))
-                                # 0가 발생하고 5초 뒤에 1이 발생하는 경우
-                                if scale1_flag and scale2_flag and not scale3_flag:
-                                    if time.time() - scale1_time > 5:
-                                        if not notify2_flag:
-                                            notify2_time = time.time()
-                                        notify2_flag = True
-                                        print("scale1 후 지속적인 화재 발생")
-                                        path = 1
-                                        if time.time() - notify2_time >= 10:  # 10초간 알림.
-                                            scale1_flag = False
-                                            scale2_flag = False
-                                            scale1_time = 0
-                                            scale2_time = 0
-                                            notify2_time = 0
-                                            notify2_flag = False
-                                elif scale2_flag:
-                                    if time.time() - scale2_time > 2:
-                                        if not notify3_flag:
-                                            notify3_time = time.time()
-                                        notify3_flag = True
-                                        print("scale2 화재 발생")
-                                        path = 2
-                                        if time.time() - notify3_time >= 10:  # 10초간 알림.
-                                            scale2_flag = False
-                                            scale2_time = 0
-                                            notify3_time = 0
-                                            notify3_flag = False
-                            if c == 0:
-                                if not scale1_flag:  # 초기에 시간만 기록
-                                    scale1_time = time.time()
-                                scale1_flag = True  # 현재 불이 났음을 알림.
-                                print("scale1 : 현재 시각:" + str(time.time()) + ", 기록된 시각: " + str(scale3_time))
-                                print("scale1 : 두 시각의 차: " + str(time.time() - scale2_time))
-                                if time.time() - scale1_time >= 10:
-                                    if not notify1_flag:
-                                        notify1_time = time.time()
-                                    notify1_flag = True
-                                    print("지속적인 scale 1 화재 주의(발생)")  # 현재 상황을 알림
-                                    path = 0
-                                    if time.time() - notify1_time >= 10:  # 10초간 알림.
-                                        scale1_flag = False
-                                        scale1_time = 0
-                                        notify1_flag = False
-                                        notify1_time = 0
-
                         label = None if hide_labels else (names[c] if hide_conf else f'{names[c]} {conf:.2f}')
+                        annotator.box_label(xyxy, label, color=colors(c, True))
 
-                        if flag and path == 0:
-                            annotator.box_label(xyxy, names[3], color=colors(3, True))
-                            flag = False
+                    if save_crop:
+                        save_one_box(xyxy, imc, file=save_dir / 'crops' / names[c] / f'{p.stem}.jpg', BGR=True)
 
-                        elif flag and path == 1:
-                            annotator.box_label(xyxy, names[4], color=colors(4, True))
-                            flag = False
+                print("지금부터 fire_history------------------------------------------")
+                for pr in fire_history:
+                    print(pr)
+                print()
 
-                        elif flag and path == 2:
-                            annotator.box_label(xyxy, names[5], color=colors(5, True))
-                            flag = False
+                sensitivity = 2  # 민감도 설정
 
-                        elif flag and path == 3:
-                            annotator.box_label(xyxy, names[6], color=colors(6, True))
-                            flag = False
+                for his in fire_history:
+                    if len(his[areas]) > 1:
+                        upper_cnt = 0
+                        print_count = 0
+                        for idx in range(1, len(his[areas])):
+                            change = his[areas][idx - 1] - his[areas][idx]
+                            if change > 5 * his[diff][x] * his[diff][y]:  # xd * yd*2 + xd*2 * yd + xd*yd 절반 크기만큼 증가
+                                print_count += 1
+                                if print_count == 1:
+                                    new_x1, new_y1 = his[center]
+                                    new_xyxy = [new_x1, new_y1, new_x1, new_y1]
+                                    if save_txt:  # Write to file
+                                        xywh = (xyxy2xywh(torch.tensor(new_xyxy).view(1, 4)) / gn).view(
+                                            -1).tolist()  # normalized xywh
+                                        line = (0, *xywh, 0) if save_conf else (0, *xywh)  # label format
+                                        with open(f'{txt_path}.txt', 'a') as f:
+                                            f.write(('%g ' * len(line)).rstrip() % line + '\n')
 
-                        else:
-                            annotator.box_label(xyxy, label, color=colors(c, True))
+                                    if save_img or save_crop or view_img:  # Add bbox to image
+                                        c = int(0)  # integer class
+                                        label = None if hide_labels else (
+                                            str('expected_fire') if hide_conf else f'{str("expected_fire")} {0:.2f}')
+                                        print(type(names[c]))
+                                        annotator.box_label(new_xyxy, label, color=colors(c, True))
 
-                        if save_crop:
-                            save_one_box(xyxy, imc, file=save_dir / 'crops' / names[c] / f'{p.stem}.jpg', BGR=True)
+                                    if save_crop:
+                                        save_one_box(new_xyxy, imc,
+                                                     file=save_dir / 'crops' / names[c] / f'{p.stem}.jpg',
+                                                     BGR=True)
+                                    print(his[center], "쪽에 폭발 예상 발생")
 
+                            if change > 0:
+                                upper_cnt += 1
+                            else:
+                                upper_cnt = 0
+                            if upper_cnt >= sensitivity:
+                                new_x1, new_y1 = his[center]
+                                new_xyxy = [new_x1, new_y1, new_x1, new_y1]
+                                if save_txt:  # Write to file
+                                    xywh = (xyxy2xywh(torch.tensor(new_xyxy).view(1, 4)) / gn).view(
+                                        -1).tolist()  # normalized xywh
+                                    line = (0, *xywh, 0) if save_conf else (0, *xywh)  # label format
+                                    with open(f'{txt_path}.txt', 'a') as f:
+                                        f.write(('%g ' * len(line)).rstrip() % line + '\n')
+
+                                if save_img or save_crop or view_img:  # Add bbox to image
+                                    c = int(0)  # integer class
+                                    label = None if hide_labels else (
+                                        str('expected_fire') if hide_conf else f'{str("expected_fire")} {0:.2f}')
+                                    print(type(names[c]))
+                                    annotator.box_label(new_xyxy, label, color=colors(c, True))
+
+                                if save_crop:
+                                    save_one_box(new_xyxy, imc, file=save_dir / 'crops' / names[c] / f'{p.stem}.jpg',
+                                                 BGR=True)
+                                print(his[center], "쪽에 화재 발생")
+                                break
             # Stream results
             im0 = annotator.result()
             if view_img:
                 cv2.imshow(str(p), im0)
-                cv2.waitKey(100)  # 1 millisecond
+                cv2.waitKey(1)  # 1 millisecond
 
             # Save results (image with detections)
             if save_img:
